@@ -58,20 +58,22 @@ static Geometry * import_3mf_error(PLib3MFModel *model = NULL, PLib3MFModelResou
 
 Geometry * import_3mf(const std::string &filename)
 {
-	DWORD interfaceVersion;
-	HRESULT result = lib3mf_getinterfaceversion(&interfaceVersion);
+	DWORD interfaceVersionMajor, interfaceVersionMinor, interfaceVersionMicro;
+	HRESULT result = lib3mf_getinterfaceversion(&interfaceVersionMajor, &interfaceVersionMinor, &interfaceVersionMicro);
 	if (result != LIB3MF_OK) {
 		PRINT("ERROR: Error reading 3MF library version");
 		return import_3mf_error();
 	}
 
-	if ((interfaceVersion != NMR_APIVERSION_INTERFACE)) {
-		PRINTB("ERROR: Invalid 3MF library version %08lx, expected %08lx", interfaceVersion % NMR_APIVERSION_INTERFACE);
+	if ((interfaceVersionMajor != NMR_APIVERSION_INTERFACE_MAJOR)) {
+		PRINTB("ERROR: Invalid 3MF library major version %u.%u.%u, expected (from header at compilation time) %u.%u.%u",
+			interfaceVersionMajor % interfaceVersionMinor % interfaceVersionMicro %
+			NMR_APIVERSION_INTERFACE_MAJOR % NMR_APIVERSION_INTERFACE_MINOR % NMR_APIVERSION_INTERFACE_MICRO);
 		return import_3mf_error();
 	}
 
 	PLib3MFModel *model;
-	result = lib3mf_createmodel(&model, 1);
+	result = lib3mf_createmodel(&model);
 	if (result != LIB3MF_OK) {
 		PRINTB("ERROR: Could not create model: %08lx", result);
 		return import_3mf_error();
@@ -176,7 +178,7 @@ Geometry * import_3mf(const std::string &filename)
 		for (polysets_t::iterator it = meshes.begin();it != meshes.end();it++) {
 			children.push_back(std::make_pair((const AbstractNode*)NULL,  shared_ptr<const Geometry>(*it)));
 		}
-		CGAL_Nef_polyhedron *N = CGALUtils::applyOperator(children, OPENSCAD_UNION);
+		CGAL_Nef_polyhedron *N = CGALUtils::applyOperator(children, OpenSCADOperator::UNION);
 
 		CGALUtils::createPolySetFromNefPolyhedron3(*N->p3, *p);
 		delete N;

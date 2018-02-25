@@ -82,20 +82,22 @@ static void append_3mf(const CGAL_Nef_polyhedron &root_N, std::ostream &output)
 		return;
 	}
 
-	DWORD interfaceVersion;
-	HRESULT result = lib3mf_getinterfaceversion(&interfaceVersion);
+	DWORD interfaceVersionMajor, interfaceVersionMinor, interfaceVersionMicro;
+	HRESULT result = lib3mf_getinterfaceversion(&interfaceVersionMajor, &interfaceVersionMinor, &interfaceVersionMicro);
 	if (result != LIB3MF_OK) {
 		PRINT("ERROR: Error reading 3MF library version");
 		return;
 	}
 
-	if ((interfaceVersion != NMR_APIVERSION_INTERFACE)) {
-		PRINTB("ERROR: Invalid 3MF library version %08lx, expected %08lx", interfaceVersion % NMR_APIVERSION_INTERFACE);
+	if ((interfaceVersionMajor != NMR_APIVERSION_INTERFACE_MAJOR)) {
+		PRINTB("ERROR: Invalid 3MF library major version %u.%u.%u, expected (from header at compilation time) %u.%u.%u",
+			interfaceVersionMajor % interfaceVersionMinor % interfaceVersionMicro %
+			NMR_APIVERSION_INTERFACE_MAJOR % NMR_APIVERSION_INTERFACE_MINOR % NMR_APIVERSION_INTERFACE_MICRO);
 		return;
 	}
 
 	PLib3MFModel *model;
-	result = lib3mf_createmodel(&model, 1);
+	result = lib3mf_createmodel(&model);
 	if (result != LIB3MF_OK) {
 		export_3mf_error("ERROR: Can't create 3MF model.");
 		return;

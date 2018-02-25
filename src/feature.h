@@ -15,12 +15,16 @@ public:
 	typedef list_t::iterator iterator;
 
 	static const Feature ExperimentalAssertExpression;
+	static const Feature ExperimentalEchoExpression;
         static const Feature ExperimentalEachExpression;
         static const Feature ExperimentalElseExpression;
         static const Feature ExperimentalForCExpression;
         static const Feature Experimental3mfImport;
         static const Feature Experimental3mfExport;
+        static const Feature ExperimentalAmfImport;
         static const Feature ExperimentalSvgImport;
+        static const Feature ExperimentalCustomizer;
+
 
 	const std::string& get_name() const;
 	const std::string& get_description() const;
@@ -52,7 +56,7 @@ class ExperimentalFeatureException : public EvaluationException
 {
 public:
 	static void check(const Feature &feature);
-	virtual ~ExperimentalFeatureException() throw();
+	~ExperimentalFeatureException() throw();
 
 private:
 	ExperimentalFeatureException(const std::string &what_arg);

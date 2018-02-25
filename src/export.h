@@ -5,15 +5,15 @@
 #include "Camera.h"
 #include "memory.h"
 
-enum FileFormat {
-	OPENSCAD_STL,
-	OPENSCAD_3MF,
-	OPENSCAD_OFF,
-	OPENSCAD_AMF,
-	OPENSCAD_DXF,
-	OPENSCAD_SVG,
-	OPENSCAD_NEFDBG,
-	OPENSCAD_NEF3
+enum class FileFormat {
+	LIB3MF,
+	STL,
+	OFF,
+	AMF,
+	DXF,
+	SVG,
+	NEFDBG,
+	NEF3
 };
 
 void exportFileByName(const shared_ptr<const class Geometry> &root_geom, FileFormat format,

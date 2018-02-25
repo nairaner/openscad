@@ -17,13 +17,17 @@ matrix:
     - os: osx
       compiler: clang
       env: DIST="osx"
+      cache:
+        - ccache
+        - directories:
+          - $HOME/Library/Caches/Homebrew
 
 notifications:
   irc:
     channels:
       - "chat.freenode.net#openscad"
     on_success: change
-    use_notice: true
+    use_notice: false
     skip_join: true
 
 before_install:

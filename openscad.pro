@@ -19,7 +19,7 @@
 # Please see the 'Building' sections of the OpenSCAD user manual 
 # for updated tips & workarounds.
 #
-# http://en.wikibooks.org/wiki/OpenSCAD_User_Manual
+# https://en.wikibooks.org/wiki/OpenSCAD_User_Manual
 
 !experimental {
   message("If you're building a development binary, consider adding CONFIG+=experimental")
@@ -48,28 +48,6 @@ TEMPLATE = app
 
 INCLUDEPATH += src
 DEPENDPATH += src
-
-# Handle custom library location.
-# Used when manually installing 3rd party libraries
-isEmpty(OPENSCAD_LIBDIR) OPENSCAD_LIBDIR = $$(OPENSCAD_LIBRARIES)
-macx:isEmpty(OPENSCAD_LIBDIR) {
-  exists(/opt/local):exists(/usr/local/Cellar) {
-    error("It seems you might have libraries in both /opt/local and /usr/local. Please specify which one to use with qmake OPENSCAD_LIBDIR=<prefix>")
-  } else {
-    exists(/opt/local) {
-      #Default to MacPorts on Mac OS X
-      message("Automatically searching for libraries in /opt/local. To override, use qmake OPENSCAD_LIBDIR=<prefix>")
-      OPENSCAD_LIBDIR = /opt/local
-    } else:exists(/usr/local/Cellar) {
-      message("Automatically searching for libraries in /usr/local. To override, use qmake OPENSCAD_LIBDIR=<prefix>")
-      OPENSCAD_LIBDIR = /usr/local
-    }
-  }
-}
-!isEmpty(OPENSCAD_LIBDIR) {
-  QMAKE_INCDIR = $$OPENSCAD_LIBDIR/include
-  QMAKE_LIBDIR = $$OPENSCAD_LIBDIR/lib
-}
 
 # add CONFIG+=deploy to the qmake command-line to make a deployment build
 deploy {
@@ -106,10 +84,15 @@ macx {
   QMAKE_MACOSX_DEPLOYMENT_TARGET = 10.8
 }
 
+# Set same stack size for the linker and #define used in PlatformUtils.h
+STACKSIZE = 8388608 # 8MB # github issue 116
+QMAKE_CXXFLAGS += -DSTACKSIZE=$$STACKSIZE
+DEFINES += STACKSIZE=$$STACKSIZE
 
 win* {
   RC_FILE = openscad_win32.rc
   QMAKE_CXXFLAGS += -DNOGDI
+  QMAKE_LFLAGS += -Wl,--stack,$$STACKSIZE
 }
 
 mingw* {
@@ -165,6 +148,8 @@ netbsd* {
   QMAKE_CXXFLAGS_WARN_ON += -Wno-sign-compare
 }
 
+!lessThan(QT_VERSION, 5.9): CONFIG += ccache
+
 CONFIG(skip-version-check) {
   # force the use of outdated libraries
   DEFINES += OPENSCAD_SKIP_VERSION_CHECK
@@ -185,6 +170,7 @@ CONFIG += fontconfig
 CONFIG += lib3mf
 CONFIG += gettext
 CONFIG += libxml2
+CONFIG += libzip
 
 #Uncomment the following line to enable the QScintilla editor
 !nogui {
@@ -225,16 +211,13 @@ FORMS   += src/MainWindow.ui \
            src/FontListDialog.ui \
            src/ProgressWidget.ui \
            src/launchingscreen.ui \
-           src/LibraryInfoDialog.ui
+           src/LibraryInfoDialog.ui \
+           src/parameter/ParameterWidget.ui \
+           src/parameter/ParameterEntryWidget.ui
 
 # AST nodes
-win* {
-  FLEXSOURCES = src/lexer.l
-  BISONSOURCES = src/parser.y
-} else {
-  LEXSOURCES += src/lexer.l
-  YACCSOURCES += src/parser.y
-}
+FLEXSOURCES += src/lexer.l 
+BISONSOURCES += src/parser.y
 
 HEADERS += src/AST.h \
            src/ModuleInstantiation.h \
@@ -243,14 +226,20 @@ HEADERS += src/AST.h \
            src/expression.h \
            src/function.h \
            src/module.h \           
-           src/UserModule.h
+           src/UserModule.h \
 
 SOURCES += src/AST.cc \
            src/ModuleInstantiation.cc \
+           src/Assignment.cc \
            src/expr.cc \
            src/function.cc \
            src/module.cc \
-           src/UserModule.cc
+           src/UserModule.cc \
+           src/annotation.cc
+
+# Comment parser
+FLEXSOURCES += src/comment_lexer.l
+BISONSOURCES += src/comment_parser.y
 
 HEADERS += src/version_check.h \
            src/ProgressWidget.h \
@@ -261,7 +250,6 @@ HEADERS += src/version_check.h \
            src/colormap.h \
            src/ThrownTogetherRenderer.h \
            src/CGAL_OGL_Polyhedron.h \
-           src/OGL_helper.h \
            src/QGLView.h \
            src/GLView.h \
            src/MainWindow.h \
@@ -274,9 +262,11 @@ HEADERS += src/version_check.h \
            src/FontListTableView.h \
            src/GroupModule.h \
            src/FileModule.h \
+           src/StatCache.h \
            src/builtin.h \
            src/calc.h \
            src/context.h \
+           src/builtincontext.h \
            src/modcontext.h \
            src/evalcontext.h \
            src/csgops.h \
@@ -333,12 +323,10 @@ HEADERS += src/version_check.h \
            src/linalg.h \
            src/Camera.h \
            src/system-gl.h \
-           src/stl-utils.h \
            src/boost-utils.h \
            src/LibraryInfo.h \
            src/svg.h \
            \
-           src/lodepng.h \
            src/OffscreenView.h \
            src/OffscreenContext.h \
            src/OffscreenContextAll.hpp \
@@ -351,7 +339,25 @@ HEADERS += src/version_check.h \
            src/AutoUpdater.h \
            src/launchingscreen.h \
            src/legacyeditor.h \
-           src/LibraryInfoDialog.h
+           src/LibraryInfoDialog.h \
+           \
+           src/comment.h\
+           \
+           src/parameter/ParameterWidget.h \
+           src/parameter/parameterobject.h \
+           src/parameter/parameterextractor.h \
+           src/parameter/parametervirtualwidget.h \
+           src/parameter/parameterspinbox.h \
+           src/parameter/parametercombobox.h \
+           src/parameter/parameterslider.h \
+           src/parameter/parametercheckbox.h \
+           src/parameter/parametertext.h \
+           src/parameter/parametervector.h \
+           src/parameter/groupwidget.h \
+           src/parameter/parameterset.h \
+           src/parameter/ignoreWheelWhenNotFocused.h \
+           src/QWordSearchField.h \
+           src/QSettingsCached.h
 
 SOURCES += \
            src/libsvg/libsvg.cc \
@@ -380,6 +386,7 @@ SOURCES += \
            src/feature.cc \
            src/node.cc \
            src/context.cc \
+           src/builtincontext.cc \
            src/modcontext.cc \
            src/evalcontext.cc \
            src/csgnode.cc \
@@ -411,7 +418,6 @@ SOURCES += \
            src/fileutils.cc \
            src/progress.cc \
            src/parsersettings.cc \
-           src/stl-utils.cc \
            src/boost-utils.cc \
            src/PlatformUtils.cc \
            src/LibraryInfo.cc \
@@ -422,9 +428,9 @@ SOURCES += \
            src/ModuleCache.cc \
            src/GeometryCache.cc \
            src/Tree.cc \
-	   src/DrawingCallback.cc \
-	   src/FreetypeRenderer.cc \
-	   src/FontCache.cc \
+	       src/DrawingCallback.cc \
+	       src/FreetypeRenderer.cc \
+	       src/FontCache.cc \
            \
            src/settings.cc \
            src/rendersettings.cc \
@@ -436,10 +442,10 @@ SOURCES += \
            src/QGLView.cc \
            src/AutoUpdater.cc \
            \
-           src/grid.cc \
            src/hash.cc \
            src/GroupModule.cc \
            src/FileModule.cc \
+           src/StatCache.cc \
            src/builtin.cc \
            src/calc.cc \
            src/export.cc \
@@ -456,6 +462,7 @@ SOURCES += \
            src/import_off.cc \
            src/import_svg.cc \
            src/import_3mf.cc \
+           src/import_amf.cc \
            src/renderer.cc \
            src/colormap.cc \
            src/ThrownTogetherRenderer.cc \
@@ -464,7 +471,6 @@ SOURCES += \
            src/fbo.cc \
            src/system-gl.cc \
            src/imageutils.cc \
-           src/lodepng.cpp \
            \
            src/openscad.cc \
            src/mainwin.cc \
@@ -476,29 +482,58 @@ SOURCES += \
            src/FontListTableView.cc \
            src/launchingscreen.cc \
            src/legacyeditor.cc \
-           src/LibraryInfoDialog.cc
+           src/LibraryInfoDialog.cc\
+           \
+           src/comment.cpp \
+           \
+           src/parameter/ParameterWidget.cc\
+           src/parameter/parameterobject.cpp \
+           src/parameter/parameterextractor.cpp \
+           src/parameter/parameterspinbox.cpp \
+           src/parameter/parametercombobox.cpp \
+           src/parameter/parameterslider.cpp \
+           src/parameter/parametercheckbox.cpp \
+           src/parameter/parametertext.cpp \
+           src/parameter/parametervector.cpp \
+           src/parameter/groupwidget.cpp \
+           src/parameter/parameterset.cpp \
+           src/parameter/parametervirtualwidget.cpp \
+           src/parameter/ignoreWheelWhenNotFocused.cpp \
+           src/QWordSearchField.cc\
+           \
+           src/QSettingsCached.cc
 
+# CGAL
+HEADERS += src/ext/CGAL/convex_hull_3_bugfix.h \
+           src/ext/CGAL/OGL_helper.h \
+           src/ext/CGAL/CGAL_workaround_Mark_bounded_volumes.h \
+           src/ext/CGAL/CGAL_Nef3_workaround.h
+
+# LodePNG
+SOURCES += src/ext/lodepng/lodepng.cpp
+HEADERS += src/ext/lodepng/lodepng.h
+           
 # ClipperLib
-SOURCES += src/polyclipping/clipper.cpp
-HEADERS += src/polyclipping/clipper.hpp
+SOURCES += src/ext/polyclipping/clipper.cpp
+HEADERS += src/ext/polyclipping/clipper.hpp
 
 # libtess2
-INCLUDEPATH += src/libtess2/Include
-SOURCES += src/libtess2/Source/bucketalloc.c \
-           src/libtess2/Source/dict.c \
-           src/libtess2/Source/geom.c \
-           src/libtess2/Source/mesh.c \
-           src/libtess2/Source/priorityq.c \
-           src/libtess2/Source/sweep.c \
-           src/libtess2/Source/tess.c
-HEADERS += src/libtess2/Include/tesselator.h \
-           src/libtess2/Source/bucketalloc.h \
-           src/libtess2/Source/dict.h \
-           src/libtess2/Source/geom.h \
-           src/libtess2/Source/mesh.h \
-           src/libtess2/Source/priorityq.h \
-           src/libtess2/Source/sweep.h \
-           src/libtess2/Source/tess.h
+INCLUDEPATH += src/ext/libtess2/Include
+SOURCES += src/ext/libtess2/Source/bucketalloc.c \
+           src/ext/libtess2/Source/dict.c \
+           src/ext/libtess2/Source/geom.c \
+           src/ext/libtess2/Source/mesh.c \
+           src/ext/libtess2/Source/priorityq.c \
+           src/ext/libtess2/Source/sweep.c \
+           src/ext/libtess2/Source/tess.c
+HEADERS += src/ext/libtess2/Include/tesselator.h \
+           src/ext/libtess2/Source/bucketalloc.h \
+           src/ext/libtess2/Source/dict.h \
+           src/ext/libtess2/Source/geom.h \
+           src/ext/libtess2/Source/mesh.h \
+           src/ext/libtess2/Source/priorityq.h \
+           src/ext/libtess2/Source/sweep.h \
+           src/ext/libtess2/Source/tess.h
 
 unix:!macx {
   SOURCES += src/imageutils-lodepng.cc
@@ -526,8 +561,6 @@ HEADERS += src/cgal.h \
            src/CGALCache.h \
            src/CGALRenderer.h \
            src/CGAL_Nef_polyhedron.h \
-           src/CGAL_Nef3_workaround.h \
-           src/convex_hull_3_bugfix.h \
            src/cgalworker.h \
            src/Polygon2d-CGAL.h
 
@@ -540,7 +573,8 @@ SOURCES += src/cgalutils.cc \
            src/CGALRenderer.cc \
            src/CGAL_Nef_polyhedron.cc \
            src/cgalworker.cc \
-           src/Polygon2d-CGAL.cc
+           src/Polygon2d-CGAL.cc \
+           src/import_nef.cc
 }
 
 macx {
@@ -565,7 +599,7 @@ target.path = $$PREFIX/bin/
 INSTALLS += target
 
 # Run translation update scripts as last step after linking the target
-QMAKE_POST_LINK += $$PWD/scripts/translation-make.sh
+QMAKE_POST_LINK += "$$PWD/scripts/translation-make.sh"
 
 # Create install targets for the languages defined in LINGUAS
 LINGUAS = $$cat(locale/LINGUAS)
@@ -603,7 +637,7 @@ colorschemes.files = color-schemes/*
 INSTALLS += colorschemes
 
 applications.path = $$PREFIX/share/applications
-applications.extra = cat icons/openscad.desktop | sed -e \"'s/^Icon=openscad/Icon=$${FULLNAME}/; s/^Exec=openscad/Exec=$${FULLNAME}/'\" > \"\$(INSTALL_ROOT)$${applications.path}/$${FULLNAME}.desktop\"
+applications.extra = mkdir -p \"\$(INSTALL_ROOT)$${applications.path}\" && cat icons/openscad.desktop | sed -e \"'s/^Icon=openscad/Icon=$${FULLNAME}/; s/^Exec=openscad/Exec=$${FULLNAME}/'\" > \"\$(INSTALL_ROOT)$${applications.path}/$${FULLNAME}.desktop\"
 INSTALLS += applications
 
 mimexml.path = $$PREFIX/share/mime/packages

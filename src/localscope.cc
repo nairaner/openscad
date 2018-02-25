@@ -2,8 +2,11 @@
 #include "modcontext.h"
 #include "module.h"
 #include "ModuleInstantiation.h"
+#include "UserModule.h"
 #include "expression.h"
 #include "function.h"
+#include "annotation.h"
+#include "UserModule.h"
 
 LocalScope::LocalScope()
 {
@@ -11,33 +14,50 @@ LocalScope::LocalScope()
 
 LocalScope::~LocalScope()
 {
-	for(auto &v : children) delete v;
-	for(auto &f : functions) delete f.second;
-	for(auto &m : modules) delete m.second;
+	for (auto &v : children) delete v;
+	for (auto &f : functions) delete f.second;
+	for (auto &m : modules) delete m.second;
 }
 
-void LocalScope::addChild(ModuleInstantiation *ch) 
+void LocalScope::addChild(ModuleInstantiation *modinst) 
 {
-	assert(ch != NULL);
-	this->children.push_back(ch); 
+	assert(modinst);
+	this->children.push_back(modinst);
 }
 
-std::string LocalScope::dump(const std::string &indent) const
+void LocalScope::addModule(const std::string &name, class UserModule *module)
 {
-	std::stringstream dump;
-	for(const auto &f : this->functions) {
-		dump << f.second->dump(indent, f.first);
+	assert(module);
+	this->modules[name] = module;
+	this->astModules.push_back({name, module});
+}
+
+void LocalScope::addFunction(class UserFunction *func)
+{
+	assert(func);
+	this->functions[func->name] = func;
+	this->astFunctions.push_back({func->name, func});
+}
+
+void LocalScope::addAssignment(const Assignment &ass)
+{
+	this->assignments.push_back(ass);
+}
+
+void LocalScope::print(std::ostream &stream, const std::string &indent) const
+{
+	for (const auto &f : this->astFunctions) {
+		f.second->print(stream, indent);
 	}
-	for(const auto &m : this->modules) {
-		dump << m.second->dump(indent, m.first);
+	for (const auto &m : this->astModules) {
+		m.second->print(stream, indent);
 	}
-	for(const auto &ass : this->assignments) {
-		dump << indent << ass.name << " = " << *ass.expr << ";\n";
+	for (const auto &ass : this->assignments) {
+		ass.print(stream, indent);
 	}
-	for(const auto &inst : this->children) {
-		dump << inst->dump(indent);
+	for (const auto &inst : this->children) {
+		inst->print(stream, indent);
 	}
-	return dump.str();
 }
 
 std::vector<AbstractNode*> LocalScope::instantiateChildren(const Context *evalctx) const

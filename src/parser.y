@@ -92,6 +92,8 @@ fs::path parser_sourcefile;
 %token TOK_ELSE
 %token TOK_FOR
 %token TOK_LET
+%token TOK_ASSERT
+%token TOK_ECHO
 %token TOK_EACH
 
 %token <text> TOK_ID
@@ -105,7 +107,9 @@ fs::path parser_sourcefile;
 
 %token LE GE EQ NE AND OR
 
-%left HIGH_PRIO_LEFT
+%right LET
+%right LOW_PRIO_RIGHT
+%left LOW_PRIO_LEFT
 
 %right '?' ':'
 
@@ -120,7 +124,8 @@ fs::path parser_sourcefile;
 %left '[' ']'
 %left '.'
 
-%left LOW_PRIO_LEFT
+%right HIGH_PRIO_RIGHT
+%left HIGH_PRIO_LEFT
 
 %type <expr> expr
 %type <vec> vector_expr
@@ -160,17 +165,17 @@ statement:
         | '{' inner_input '}'
         | module_instantiation
             {
-                if ($1) scope_stack.top()->addChild($1);
+              if ($1) scope_stack.top()->addChild($1);
             }
         | assignment
         | TOK_MODULE TOK_ID '(' arguments_decl optional_commas ')'
             {
-              UserModule *newmodule = new UserModule(LOC(@$));
-                newmodule->definition_arguments = *$4;
-                scope_stack.top()->modules[$2] = newmodule;
-                scope_stack.push(&newmodule->scope);
-                free($2);
-                delete $4;
+              UserModule *newmodule = new UserModule($2, LOC(@$));
+              newmodule->definition_arguments = *$4;
+              scope_stack.top()->addModule($2, newmodule);
+              scope_stack.push(&newmodule->scope);
+              free($2);
+              delete $4;
             }
           statement
             {
@@ -179,9 +184,9 @@ statement:
         | TOK_FUNCTION TOK_ID '(' arguments_decl optional_commas ')' '=' expr
             {
               UserFunction *func = UserFunction::create($2, *$4, shared_ptr<Expression>($8), LOC(@$));
-                scope_stack.top()->functions[$2] = func;
-                free($2);
-                delete $4;
+              scope_stack.top()->addFunction(func);
+              free($2);
+              delete $4;
             }
           ';'
         ;
@@ -204,7 +209,7 @@ assignment:
                     }
                 }
                 if (!found) {
-                  scope_stack.top()->assignments.push_back(Assignment($1, shared_ptr<Expression>($3), LOC(@$)));
+                  scope_stack.top()->addAssignment(Assignment($1, shared_ptr<Expression>($3), LOC(@$)));
                 }
                 free($1);
             }
@@ -296,6 +301,8 @@ module_id:
           TOK_ID  { $$ = $1; }
         | TOK_FOR { $$ = strdup("for"); }
         | TOK_LET { $$ = strdup("let"); }
+        | TOK_ASSERT { $$ = strdup("assert"); }
+        | TOK_ECHO { $$ = strdup("echo"); }
         | TOK_EACH { $$ = strdup("each"); }
         ;
 
@@ -432,31 +439,41 @@ expr:
             {
               $$ = new ArrayLookup($1, $3, LOC(@$));
             }
-        | TOK_ID '(' arguments_call ')' expr_or_empty
+        | TOK_ID '(' arguments_call ')'
             {
-              $$ = FunctionCall::create($1, *$3, $5, LOC(@$));
-			  free($1);
-			  delete $3;
-			}
-		| TOK_LET '(' arguments_call ')' expr_or_empty
+              $$ = new FunctionCall($1, *$3, LOC(@$));
+              free($1);
+              delete $3;
+            }
+        | TOK_LET '(' arguments_call ')' expr %prec LET
             {
-				$$ = FunctionCall::create("let", *$3, $5, LOC(@$));
-				delete $3;
-			}
+              $$ = FunctionCall::create("let", *$3, $5, LOC(@$));
+              delete $3;
+            }
+        | TOK_ASSERT '(' arguments_call ')' expr_or_empty %prec LOW_PRIO_LEFT
+            {
+              $$ = FunctionCall::create("assert", *$3, $5, LOC(@$));
+              delete $3;
+            }
+        | TOK_ECHO '(' arguments_call ')' expr_or_empty %prec LOW_PRIO_LEFT
+            {
+              $$ = FunctionCall::create("echo", *$3, $5, LOC(@$));
+              delete $3;
+            }
         ;
 
 expr_or_empty:
-		  %prec LOW_PRIO_LEFT
-		    {
-			    $$ = NULL;
-		    }
-		| expr %prec HIGH_PRIO_LEFT
-		    {
-			    $$ = $1;
-		    }
-		;
-
-list_comprehension_elements:
+          %prec LOW_PRIO_LEFT
+            {
+              $$ = NULL;
+            }
+        | expr %prec HIGH_PRIO_LEFT
+            {
+              $$ = $1;
+            }
+        ;
+ 
+ list_comprehension_elements:
           /* The last set element may not be a "let" (as that would instead
              be parsed as an expression) */
           TOK_LET '(' arguments_call ')' list_comprehension_elements_p
@@ -611,26 +628,30 @@ void yyerror (char const *s)
          sourcefile() % lexerget_lineno() % s);
 }
 
-FileModule *parse(const char *text, const fs::path &filename, int debug)
+bool parse(FileModule *&module, const char *text, const std::string &filename, int debug)
 {
+  fs::path path = fs::absolute(fs::path(filename));
+  
   lexerin = NULL;
   parser_error_pos = -1;
   parser_input_buffer = text;
-  parser_sourcefile = fs::absolute(filename);
+  parser_sourcefile = path;
 
-  rootmodule = new FileModule();
-  rootmodule->setModulePath(filename.parent_path().generic_string());
+  rootmodule = new FileModule(path.parent_path().generic_string(), path.filename().generic_string());
   scope_stack.push(&rootmodule->scope);
   //        PRINTB_NOCACHE("New module: %s %p", "root" % rootmodule);
 
   parserdebug = debug;
   int parserretval = parserparse();
+
   lexerdestroy();
   lexerlex_destroy();
 
-  if (parserretval != 0) return NULL;
+  module = rootmodule;
+  if (parserretval != 0) return false;
 
   parser_error_pos = -1;
   scope_stack.pop();
-  return rootmodule;
+
+  return true;
 }

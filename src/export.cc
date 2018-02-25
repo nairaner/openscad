@@ -36,28 +36,28 @@
 void exportFile(const shared_ptr<const Geometry> &root_geom, std::ostream &output, FileFormat format)
 {
 	switch (format) {
-	case OPENSCAD_STL:
+	case FileFormat::STL:
 		export_stl(root_geom, output);
 		break;
-	case OPENSCAD_3MF:
+	case FileFormat::LIB3MF:
 		export_3mf(root_geom, output);
 		break;
-	case OPENSCAD_OFF:
+	case FileFormat::OFF:
 		export_off(root_geom, output);
 		break;
-	case OPENSCAD_AMF:
+	case FileFormat::AMF:
 		export_amf(root_geom, output);
 		break;
-	case OPENSCAD_DXF:
+	case FileFormat::DXF:
 		export_dxf(root_geom, output);
 		break;
-	case OPENSCAD_SVG:
+	case FileFormat::SVG:
 		export_svg(root_geom, output);
 		break;
-	case OPENSCAD_NEFDBG:
+	case FileFormat::NEFDBG:
 		export_nefdbg(root_geom, output);
 		break;
-	case OPENSCAD_NEF3:
+	case FileFormat::NEF3:
 		export_nef3(root_geom, output);
 		break;
 	default:
@@ -69,7 +69,7 @@ void exportFileByName(const shared_ptr<const Geometry> &root_geom, FileFormat fo
 	const char *name2open, const char *name2display)
 {
 	std::ios::openmode mode = std::ios::out | std::ios::trunc;
-	if (format == FileFormat::OPENSCAD_3MF) {
+	if (format == FileFormat::LIB3MF) {
 		mode |= std::ios::binary;
 	}
 	std::ofstream fstream(name2open, mode);
