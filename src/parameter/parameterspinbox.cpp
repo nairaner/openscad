@@ -3,62 +3,65 @@
 
 ParameterSpinBox::ParameterSpinBox(ParameterObject *parameterobject, int showDescription)
 {
-	object = parameterobject;
-	setName(QString::fromStdString(object->name));
-	setValue();
-	connect(doubleSpinBox, SIGNAL(valueChanged(double)), this, SLOT(onChanged(double)));
-	if (showDescription == 0 || showDescription == 3) {
-		setDescription(object->description);
-		this->labelInline->hide();
-	}else if(showDescription == 1){
-		addInline(object->description);
-	}else{
-		doubleSpinBox->setToolTip(object->description);
-	}
+  object = parameterobject;
+  setName(QString::fromStdString(object->name));
+  setValue();
+  connect(doubleSpinBox, SIGNAL(valueChanged(double)), this, SLOT(onChanged(double)));
+  if (showDescription == 0 || showDescription == 3) {
+    setDescription(object->description);
+    this->labelInline->hide();
+  }
+  else if (showDescription == 1) {
+    addInline(object->description);
+  }
+  else {
+    doubleSpinBox->setToolTip(object->description);
+  }
 
-	if (showDescription == 3 && object->description !=""){
-		this->labelParameter->hide();
-	}else{
-		this->labelParameter->show();
-	}
+  if (showDescription == 3 && object->description != "") {
+    this->labelParameter->hide();
+  }
+  else {
+    this->labelParameter->show();
+  }
 
-	IgnoreWheelWhenNotFocused *ignoreWheelWhenNotFocused = new IgnoreWheelWhenNotFocused(this);
-	doubleSpinBox->installEventFilter(ignoreWheelWhenNotFocused);
+  IgnoreWheelWhenNotFocused *ignoreWheelWhenNotFocused = new IgnoreWheelWhenNotFocused(this);
+  doubleSpinBox->installEventFilter(ignoreWheelWhenNotFocused);
 }
 
 void ParameterSpinBox::onChanged(double)
 {
-	if(!this->suppressUpdate){
-		object->focus = true;
-		object->value = ValuePtr(doubleSpinBox->value());
-		emit changed();
-	}
+  if (!this->suppressUpdate) {
+    object->focus = true;
+    object->value = ValuePtr(doubleSpinBox->value());
+    emit changed();
+  }
 }
 
 void ParameterSpinBox::setParameterFocus()
 {
-	this->doubleSpinBox->setFocus();
-	object->focus = false;
+  this->doubleSpinBox->setFocus();
+  object->focus = false;
 }
 
 void ParameterSpinBox::setValue()
 {
-	if(hasFocus())return; //refuse programmatic updates, when the widget is in the focus of the user
+  if (hasFocus()) return; //refuse programmatic updates, when the widget is in the focus of the user
 
-	suppressUpdate=true;
-	if (object->values->toDouble() > 0) {
-		setPrecision(object->values->toDouble());
-		this->doubleSpinBox->setSingleStep(object->values->toDouble());
-	}
-	else {
-		setPrecision(object->defaultValue->toDouble());
-		this->doubleSpinBox->setSingleStep(1/pow(10,decimalPrecision));
-	}
-	this->doubleSpinBox->setDecimals(decimalPrecision);
-	this->stackedWidgetRight->setCurrentWidget(this->pageSpin);
-	this->pageSpin->setSizePolicy(QSizePolicy::Maximum,QSizePolicy::Expanding);
-	this->stackedWidgetBelow->hide();
-	this->doubleSpinBox->setRange(object->value->toDouble()-1000, object->value->toDouble()+1000);
-	this->doubleSpinBox->setValue(object->value->toDouble());
-	suppressUpdate=false;
+  suppressUpdate = true;
+  if (object->values->toDouble() > 0) {
+    setPrecision(object->values->toDouble());
+    this->doubleSpinBox->setSingleStep(object->values->toDouble());
+  }
+  else {
+    setPrecision(object->defaultValue->toDouble());
+    this->doubleSpinBox->setSingleStep(1 / pow(10, decimalPrecision));
+  }
+  this->doubleSpinBox->setDecimals(decimalPrecision);
+  this->stackedWidgetRight->setCurrentWidget(this->pageSpin);
+  this->pageSpin->setSizePolicy(QSizePolicy::Maximum, QSizePolicy::Expanding);
+  this->stackedWidgetBelow->hide();
+  this->doubleSpinBox->setRange(object->value->toDouble() - 1000, object->value->toDouble() + 1000);
+  this->doubleSpinBox->setValue(object->value->toDouble());
+  suppressUpdate = false;
 }

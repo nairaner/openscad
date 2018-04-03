@@ -34,60 +34,60 @@
 
 class ParameterWidget : public QWidget, public Ui::ParameterWidget
 {
-	Q_OBJECT
+  Q_OBJECT
 private:
-	struct groupInst {
-		std::vector<std::string> parameterVector;
-		bool show;
-		bool inList;
-	};
-	std::vector<std::string> groupPos;
-	typedef std::map<std::string,groupInst > group_map;
-	group_map groupMap;
-	QTimer autoPreviewTimer;
-	int descriptionLoD; //configuration if and how much of the description is shown
-	std::string jsonFile;
-	bool anyfocused;
-	ParameterVirtualWidget *entryToFocus;
+  struct groupInst {
+    std::vector<std::string> parameterVector;
+    bool show;
+    bool inList;
+  };
+  std::vector<std::string> groupPos;
+  typedef std::map<std::string, groupInst> group_map;
+  group_map groupMap;
+  QTimer autoPreviewTimer;
+  int descriptionLoD; //configuration if and how much of the description is shown
+  std::string jsonFile;
+  bool anyfocused;
+  ParameterVirtualWidget *entryToFocus;
 
-	void connectWidget();
-	void updateWidget();
-	void cleanScrollArea();
-	void rebuildGroupMap();
-	ParameterVirtualWidget* CreateParameterWidget(std::string parameterName);
-	void setComboBoxPresetForSet();
+  void connectWidget();
+  void updateWidget();
+  void cleanScrollArea();
+  void rebuildGroupMap();
+  ParameterVirtualWidget *CreateParameterWidget(std::string parameterName);
+  void setComboBoxPresetForSet();
 
-	void setFile(QString File);
+  void setFile(QString File);
 
-	bool unreadableFileExists=false;
-	entry_map_t entries;
-	std::vector<std::string> ParameterPos;
-	ParameterExtractor *extractor;
-	ParameterSet *setMgr;
+  bool unreadableFileExists = false;
+  entry_map_t entries;
+  std::vector<std::string> ParameterPos;
+  ParameterExtractor *extractor;
+  ParameterSet *setMgr;
 public:
-	ParameterWidget(QWidget *parent = nullptr);
-	~ParameterWidget();
-	void readFile(QString scadFile);
-	void writeFileIfNotEmpty(QString scadFile);
-	void setParameters(const FileModule* module,bool);
-	void applyParameters(FileModule *fileModule);
+  ParameterWidget(QWidget *parent = nullptr);
+  ~ParameterWidget();
+  void readFile(QString scadFile);
+  void writeFileIfNotEmpty(QString scadFile);
+  void setParameters(const FileModule *module, bool);
+  void applyParameters(FileModule *fileModule);
 
 protected slots:
-	void onValueChanged();
-	void onPreviewTimerElapsed();
-	void onDescriptionLoDChanged();
-	void onSetChanged(int idx);
-	void onSetAdd();
-	void onSetSaveButton();
-	void onSetDelete();
-	void resetParameter();
+  void onValueChanged();
+  void onPreviewTimerElapsed();
+  void onDescriptionLoDChanged();
+  void onSetChanged(int idx);
+  void onSetAdd();
+  void onSetSaveButton();
+  void onSetDelete();
+  void resetParameter();
 
 signals:
-	void previewRequested(bool rebuildParameterUI=true);
+  void previewRequested(bool rebuildParameterUI = true);
 
 protected:
-	void applyParameterSet(std::string setName);
-	void updateParameterSet(std::string setName);
-	void writeParameterSets();
+  void applyParameterSet(std::string setName);
+  void updateParameterSet(std::string setName);
+  void writeParameterSets();
 };
 
